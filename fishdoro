@@ -1,0 +1,95 @@
+#!/usr/bin/env fish
+
+set fr_num_todos 10
+set fr_root '.'
+set fr_ch_est '🤔'
+set fr_ch_pomo '🍅'
+set fr_ch_good '😀'
+set fr_ch_bad '😥'
+set fr_col_high cyan
+
+function fr_usage
+    echo "Sample usages:"
+    echo " fishdoro list"
+    echo " : List activity inventory"
+    echo " fishdoro add A sample activity description"
+    echo " : Add an activity named 'A sample activity description' with estimation of 1 pomodoro"
+    echo " fishdoro add A sample activity description 5"
+    echo " : Add an activity named 'A sample activity description' with estimation of 5 pomodoros"
+    echo " fishdoro tour"
+    echo " : Start activity tournament"
+    echo " fishdoro pomo 5"
+    echo " : Start pomodoro on 5th activity"
+    echo " fishdoro break"
+    echo " : Start a break"
+    echo " fishdoro break long"
+    echo " : Start a long break"
+    echo " fishdoro finish"
+    echo " : Finish last activity"
+    echo " fishdoro trash"
+    echo " : Trash current pomodoro"
+end
+
+function fr_ai_list
+    set cnt (wc -l < $fr_root/inventory.txt)
+    for line in (cat $fr_root/inventory.txt)
+        if [ ! $fr_num_todos -lt $cnt ]
+            echo "[$cnt] $line"
+        else
+            echo "\($cnt\) $line"
+        end
+        set cnt (math "$cnt - 1")
+    end
+end
+
+function fr_ai_add
+    if [ 3 -gt (count $argv) ]
+        fr_usage
+    else
+        switch (math "$argv[-1]")
+            case 0;
+                set act_str $argv[2..-1] $fr_ch_est
+            case '*';
+                set act_str $argv[2..-2] (printf "%0.*d" $argv[-1] 0 | string replace -a 0 $fr_ch_est)
+        end
+        flock $fr_root/inventory.txt -c "echo $act_str >> $fr_root/inventory.txt"
+        echo Activity added : $act_str
+    end
+end
+
+function fr_ai_tour
+    echo 'activity inventory tournament'
+end
+
+function fr_pomo
+    echo 'activity pomodoro'
+end
+
+function fr_break
+    echo 'break $argv'
+end
+
+function fr_finish
+    echo 'finish activity'
+end
+
+function fr_trash
+    echo 'trash current pomodoro'
+end
+
+switch "$argv[1]"
+    case 'list'; fr_ai_list
+    case 'add'; fr_ai_add $argv
+    case 'tour'; fr_ai_tour
+    case 'pomo'; fr_pomo "$argv[2]"
+    case 'break'; fr_break "$argv[2]"
+    case 'finish'; fr_finish "$argv[2]"
+    case 'trash'; fr_trash
+    case 'help'
+        fr_usage
+    case '*';
+        fr_usage
+        exit 1
+end
+
+exit 0
