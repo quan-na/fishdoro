@@ -6,7 +6,6 @@ set fr_ch_est '🤔'
 set fr_ch_pomo '🍅'
 set fr_ch_good '😀'
 set fr_ch_bad '😥'
-set fr_col_high cyan
 
 function fr_usage
     echo "Sample usages:"
@@ -42,7 +41,7 @@ function fr_ai_list
     end
 end
 
-function fr_ai_add
+function fr_ai_add # original $argv
     if [ 3 -gt (count $argv) ]
         fr_usage
     else
@@ -57,8 +56,34 @@ function fr_ai_add
     end
 end
 
+function fr_swap # array idx1 idx2
+    set arr $argv[1]
+    set len (count $argv[1])
+    set idx1 (math "$argv[2]")
+    set idx2 (math "$argv[3]")
+    if [ 1 -gt $idx1 -o $idx1 -gt $len -o 1 -gt $idx2 -o $idx2 -gt $len ]
+        return;
+    end
+    set i 1
+    set res_arr
+    while [ $i -lt $len ]
+        if [ $i -eq $idx1 ]
+            set res_arr $res_arr $arr[$idx2]
+        else if [ $i -eq $idx2 ]
+            set res_arr $res_arr $arr[$idx1]
+        else
+            set res_arr $res_arr $arr[$i]
+        end
+        set $i (math "$i + 1")
+    end
+    return $res_arr
+end
+
 function fr_ai_tour
     echo 'activity inventory tournament'
+    for i1 in (seq $fr_num_todos)
+
+    end
 end
 
 function fr_pomo
