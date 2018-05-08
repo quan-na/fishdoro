@@ -56,34 +56,55 @@ function fr_ai_add # original $argv
     end
 end
 
-function fr_swap # array idx1 idx2
-    set arr $argv[1]
-    set len (count $argv[1])
-    set idx1 (math "$argv[2]")
-    set idx2 (math "$argv[3]")
-    if [ 1 -gt $idx1 -o $idx1 -gt $len -o 1 -gt $idx2 -o $idx2 -gt $len ]
-        return;
-    end
-    set i 1
-    set res_arr
-    while [ $i -lt $len ]
-        if [ $i -eq $idx1 ]
-            set res_arr $res_arr $arr[$idx2]
-        else if [ $i -eq $idx2 ]
-            set res_arr $res_arr $arr[$idx1]
-        else
-            set res_arr $res_arr $arr[$i]
-        end
-        set $i (math "$i + 1")
-    end
-    return $res_arr
-end
-
 function fr_ai_tour
-    echo 'activity inventory tournament'
-    for i1 in (seq $fr_num_todos)
+    begin
+        flock -e 200
+        set array (cat $fr_root/inventory.txt)
+        set arrLen (count $array)
 
-    end
+        for sorted in (seq 1 $fr_num_todos)
+            for idx in (seq 1 (math "$arrLen - $sorted"))
+                set idx1 (math "$idx + 1")
+                echo ""
+                echo "[J]ack :: $array[$idx]"
+                echo "         -----VS-----"
+                echo "[K]ing :: $array[$idx1]"
+                echo -n "Which is chosen?(j/k/e)"
+                read -P ' ' -n1 ans
+                while [ $ans != 'j' -a $ans != k -a $ans != 'J' -a $ans != 'K' -a $ans != 'e' -a $ans != 'E' ]
+                    read -P ' ' -n1 ans
+                end
+                if [ $ans = 'e' -o $ans = 'E' ]
+                    exit 0
+                end
+                if [ $ans = 'j' -o $ans = 'J' ]
+                    if [ $idx -eq 1 ]
+                        if [ $idx1 -eq $arrLen ]
+                            set array $array[$idx1] $array[$idx]
+                        else
+                            set idx2 (math "$idx1 + 1")
+                            set array $array[$idx1] $array[$idx] $array[$idx2..$arrLen]
+                        end
+                    else if [ $idx1 -eq $arrLen ]
+                        set idx0 (math "$idx - 1")
+                        set array $array[1..$idx0] $array[$idx1] $array[$idx]
+                    else
+                        set idx2 (math "$idx1 + 1")
+                        set idx0 (math "$idx - 1")
+                        set array $array[1..$idx0] $array[$idx1] $array[$idx] $array[$idx2..$arrLen]
+                    end
+                end
+            end
+        end
+
+        truncate -s 0 $fr_root/inventory.txt
+        echo ''
+        echo Result:
+        for idx in (seq 1 $arrLen)
+            echo $array[$idx] >> $fr_root/inventory.txt
+            echo "["(math "$arrLen - $idx + 1")"]" $array[$idx]
+        end
+    end 200<$fr_root/inventory.txt
 end
 
 function fr_pomo
