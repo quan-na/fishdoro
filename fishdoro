@@ -108,7 +108,31 @@ function fr_ai_tour
 end
 
 function fr_pomo
-    echo 'activity pomodoro'
+    if [ 2 -gt (count $argv) ]
+        fr_usage
+        exit 1
+    end
+    set curr (math "$argv[2]")
+    begin
+        flock -e 200
+        if cat $fr_root/inventory.txt | grep $fr_ch_pomo >> /dev/null
+            echo A pomodoro is already running!
+            exit 1
+        end
+        set array (cat $fr_root/inventory.txt)
+        set arrLen (count $array)
+
+        truncate -s 0 $fr_root/inventory.txt
+        for idx in (seq 1 $arrLen)
+            if [ $curr -eq (math "$arrLen - $idx + 1") ]
+                echo $array[$idx] $fr_ch_pomo >> $fr_root/inventory.txt
+            else
+                echo $array[$idx] >> $fr_root/inventory.txt
+            end
+        end
+    end 200<$fr_root/inventory.txt
+
+    # TODO end pomodoro
 end
 
 function fr_break
@@ -127,7 +151,7 @@ switch "$argv[1]"
     case 'list'; fr_ai_list
     case 'add'; fr_ai_add $argv
     case 'tour'; fr_ai_tour
-    case 'pomo'; fr_pomo "$argv[2]"
+    case 'pomo'; fr_pomo $argv
     case 'break'; fr_break "$argv[2]"
     case 'finish'; fr_finish "$argv[2]"
     case 'trash'; fr_trash
