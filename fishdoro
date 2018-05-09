@@ -6,6 +6,9 @@ set fr_ch_est '🤔'
 set fr_ch_pomo '🍅'
 set fr_ch_good '😀'
 set fr_ch_bad '😥'
+set fr_pomo_len 2 # 25
+set fr_brk_shrt 2 # 5
+set fr_brk_long 2 # 15
 
 function fr_usage
     echo "Sample usages:"
@@ -133,6 +136,41 @@ function fr_pomo
     end 200<$fr_root/inventory.txt
 
     # TODO end pomodoro
+    for time in (seq 1 $fr_pomo_len)
+        set remain (math "$fr_pomo_len - $time + 1")
+        if [ $remain -gt 1 ]
+            echo $remain minutes remains
+            sleep 60
+        else
+            break
+        end
+    end
+    for time in (seq 1 60)
+        set remain (math "60 - $time")
+        sleep 1
+        echo $remain seconds remains
+    end
+    begin
+        flock -e 200
+        set array (cat $fr_root/inventory.txt)
+        set arrLen (count $array)
+
+        truncate -s 0 $fr_root/inventory.txt
+        for idx in (seq 1 $arrLen)
+            set line $array[$idx]
+            if string match "* $fr_ch_pomo" "$line" > /dev/null
+                set line (string replace " $fr_ch_pomo" '' $line) # remove the pomo char
+                if string match "*$fr_ch_est*" $line[-1] > /dev/null
+                    echo (string replace $fr_ch_est $fr_ch_good $line) >> $fr_root/inventory.txt
+                else
+                    echo $line$fr_ch_bad >> $fr_root/inventory.txt
+                end
+            else
+                echo $line >> $fr_root/inventory.txt
+            end
+        end
+    end 200<$fr_root/inventory.txt
+    echo Pomo ended
 end
 
 function fr_break
