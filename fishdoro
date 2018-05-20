@@ -7,8 +7,8 @@ set fr_ch_pomo '🍅'
 set fr_ch_good '😀'
 set fr_ch_bad '😥'
 set fr_pomo_len 2 # 25
-set fr_brk_shrt 2 # 5
-set fr_brk_long 2 # 15
+set fr_brk_shrt 1 # 5
+set fr_brk_long 3 # 15
 
 function fr_usage
     echo "Sample usages:"
@@ -135,7 +135,7 @@ function fr_pomo
         end
     end 200<$fr_root/inventory.txt
 
-    # TODO end pomodoro
+    # TODO move to asynchronous section
     for time in (seq 1 $fr_pomo_len)
         set remain (math "$fr_pomo_len - $time + 1")
         if [ $remain -gt 1 ]
@@ -174,7 +174,40 @@ function fr_pomo
 end
 
 function fr_break
-    echo 'break $argv'
+    if cat $fr_root/.breaking | grep $fr_ch_pomo >> /dev/null
+        # already in break
+        echo "Already in break"
+        exit 1
+    else
+        # do break
+        begin
+            flock -e 200
+            echo $fr_ch_pomo > $fr_root/.breaking
+        end 200<$fr_root/.breaking
+        set brk_time $fr_brk_short
+        if [ $argv[1] = 'long' ]
+            set brk_time $fr_brk_long
+        end
+        for time in (seq 1 $brk_time)
+            set remain (math "$brk_time - $time + 1")
+            if [ $remain -gt 1 ]
+                echo $remain minutes remains
+                sleep 60
+            else
+                break
+            end
+        end
+        for time in (seq 1 60)
+            set remain (math "60 - $time")
+            sleep 1
+            echo $remain seconds remains
+        end
+        begin
+            flock -e 200
+            truncate -s 0 $fr_root/.breaking
+        end 200<$fr_root/.breaking
+    end
+    echo 'Break ended.'
 end
 
 function fr_finish
