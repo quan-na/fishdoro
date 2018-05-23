@@ -1,10 +1,7 @@
-dxc daily [V][X]
-chat with yy [ ]
-read ai book [ ][ ][ ]
-code fishdoro [V][V][ ][ ][ ]
-
-
-
-test aaa [ ][ ]
-
-test aaa [ ]
+dxc daily [  ][  ]
+chat with yy [  ]
+read ai book [  ][  ][  ]
+code fishdoro [  ][  ][  ][  ][  ]
+test aaa [  ][  ]
+test bbb [^^][**]
+team meeting ne [  ]

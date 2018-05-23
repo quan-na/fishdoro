@@ -2,10 +2,10 @@
 
 set fr_num_todos 10
 set fr_root '.'
-set fr_ch_est '[ ]'
+set fr_ch_est '[  ]'
 set fr_ch_pomo '( <)'
-set fr_ch_good '[V]'
-set fr_ch_bad '[X]'
+set fr_ch_good '[^^]'
+set fr_ch_bad '[**]'
 set fr_pomo_len 3 # 25
 set fr_brk_shrt 1 # 5
 set fr_brk_long 2 # 15
@@ -23,13 +23,13 @@ function fr_usage
     echo " fishdoro pomo 5"
     echo " : Start pomodoro on 5th activity"
     echo " fishdoro break"
-    echo " : Start a break"
+    echo " : Start a short break"
     echo " fishdoro break long"
     echo " : Start a long break"
+    echo " fishdoro break force"
+    echo " : Start a short break and trash current pomodoro"
     echo " fishdoro finish"
     echo " : Finish last activity"
-    echo " fishdoro trash"
-    echo " : Trash current pomodoro"
 end
 
 function fr_ai_list
@@ -56,10 +56,10 @@ function fr_ai_add # original $argv
                     exit 1
                 end
                 set act_str $argv[2..-2] (printf "%0.*d" $argv[-1] 0 | string replace -a 0 $fr_ch_est)
-            case *;
+            case '*';
                 set act_str $argv[2..-1] $fr_ch_est
         end
-        flock $fr_root/inventory.txt -c "echo $act_str >> $fr_root/inventory.txt"
+        flock $fr_root/inventory.txt -c "echo \"$act_str\" >> $fr_root/inventory.txt"
         echo Activity added : $act_str
     end
 end
@@ -115,6 +115,10 @@ function fr_ai_tour
     end 200<$fr_root/inventory.txt
 end
 
+function fr_clean_pomo
+    # TODO clean killed running pomodoro
+end
+
 set async_secret oDHirw9YvNVkMq3y2
 function fr_async
     if [ "$argv[2]" = "$async_secret" ]
@@ -123,6 +127,13 @@ function fr_async
             case "pomodoro";
                 # do pomodoro
                 for time in (seq 1 $fr_pomo_len)
+                    # check for break
+                    if cat $fr_root/.breaking | grep $fr_ch_pomo >> /dev/null
+                        # already in break
+                        echo "Breaked"
+                        fr_clean_pomo
+                        exit 1
+                    end
                     set remain (math "$fr_pomo_len - $time + 1")
                     echo $remain minutes remains
                     if [ $remain -gt 1 ]
@@ -132,6 +143,13 @@ function fr_async
                     end
                 end
                 for time in (seq 1 60)
+                    # check for break
+                    if cat $fr_root/.breaking | grep $fr_ch_pomo >> /dev/null
+                        # already in break
+                        echo "Breaked"
+                        fr_clean_pomo
+                        exit 1
+                    end
                     set remain (math "60 - $time")
                     sleep 1
                     echo $remain seconds remains
@@ -214,6 +232,12 @@ function fr_pomo
         fr_usage
         exit 1
     end
+    # check break is running
+    if cat $fr_root/.breaking | grep $fr_ch_pomo >> /dev/null
+        # already in break
+        echo "Already in break, enjoy your time"
+        exit 1
+    end
     set curr (math "$argv[2]")
     begin
         flock -e 200
@@ -244,6 +268,13 @@ function fr_break
         echo "Already in break"
         exit 1
     else
+        # check pomodoro running
+        if cat $fr_root/inventory.txt | grep $fr_ch_pomo >> /dev/null
+            if [ ! "$argv[1]" = "force" ]
+                echo "A pomodoro is already running, use\nfishdoro break force\nto stop it"
+                exit 1
+            end
+        end
         # do break
         begin
             flock -e 200
@@ -263,10 +294,6 @@ function fr_finish
     echo 'finish activity'
 end
 
-function fr_trash
-    echo 'trash current pomodoro'
-end
-
 switch "$argv[1]"
     case 'async'; fr_async $argv
     case 'list'; fr_ai_list
@@ -275,7 +302,6 @@ switch "$argv[1]"
     case 'pomo'; fr_pomo $argv
     case 'break'; fr_break "$argv[2]"
     case 'finish'; fr_finish "$argv[2]"
-    case 'trash'; fr_trash
     case 'help'
         fr_usage
     case '*';
