@@ -116,7 +116,24 @@ function fr_ai_tour
 end
 
 function fr_clean_pomo
-    # TODO clean killed running pomodoro
+    # Clean killed running pomodoro
+    begin
+        flock -e 200
+        set array (cat $fr_root/inventory.txt)
+        set arrLen (count $array)
+
+        truncate -s 0 $fr_root/inventory.txt
+        for idx in (seq 1 $arrLen)
+            set line $array[$idx]
+            if string match "* $fr_ch_pomo" "$line" > /dev/null
+                set line (string replace " $fr_ch_pomo" '' $line) # remove the pomo char
+                echo $line >> $fr_root/inventory.txt
+            else
+                echo $line >> $fr_root/inventory.txt
+            end
+        end
+    end 200<$fr_root/inventory.txt
+    echo Pomo ended
 end
 
 set async_secret oDHirw9YvNVkMq3y2
@@ -271,7 +288,9 @@ function fr_break
         # check pomodoro running
         if cat $fr_root/inventory.txt | grep $fr_ch_pomo >> /dev/null
             if [ ! "$argv[1]" = "force" ]
-                echo "A pomodoro is already running, use\nfishdoro break force\nto stop it"
+                echo "A pomodoro is already running, use"
+                echo " fishdoro break force"
+                echo "to stop it"
                 exit 1
             end
         end
