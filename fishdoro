@@ -48,7 +48,7 @@ function fr_ai_add # original $argv
     if [ 2 -gt (count $argv) ]
         fr_usage
     else
-        test "$argv[-1]" -gt 0 2>1 >/dev/null
+        test "$argv[-1]" -gt 0 >/dev/null 2>&1
         switch $status
             case 0;
                 if [ 3 -gt (count $argv) ]
