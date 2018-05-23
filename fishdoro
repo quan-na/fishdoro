@@ -2,13 +2,13 @@
 
 set fr_num_todos 10
 set fr_root '.'
-set fr_ch_est '🤔'
-set fr_ch_pomo '🍅'
-set fr_ch_good '😀'
-set fr_ch_bad '😥'
-set fr_pomo_len 2 # 25
+set fr_ch_est '[ ]'
+set fr_ch_pomo '( <)'
+set fr_ch_good '[V]'
+set fr_ch_bad '[X]'
+set fr_pomo_len 3 # 25
 set fr_brk_shrt 1 # 5
-set fr_brk_long 3 # 15
+set fr_brk_long 2 # 15
 
 function fr_usage
     echo "Sample usages:"
@@ -45,14 +45,19 @@ function fr_ai_list
 end
 
 function fr_ai_add # original $argv
-    if [ 3 -gt (count $argv) ]
+    if [ 2 -gt (count $argv) ]
         fr_usage
     else
-        switch (math "$argv[-1]")
+        test "$argv[-1]" -gt 0 2>1 >/dev/null
+        switch $status
             case 0;
-                set act_str $argv[2..-1] $fr_ch_est
-            case '*';
+                if [ 3 -gt (count $argv) ]
+                    fr_usage
+                    exit 1
+                end
                 set act_str $argv[2..-2] (printf "%0.*d" $argv[-1] 0 | string replace -a 0 $fr_ch_est)
+            case *;
+                set act_str $argv[2..-1] $fr_ch_est
         end
         flock $fr_root/inventory.txt -c "echo $act_str >> $fr_root/inventory.txt"
         echo Activity added : $act_str
@@ -110,6 +115,100 @@ function fr_ai_tour
     end 200<$fr_root/inventory.txt
 end
 
+set async_secret oDHirw9YvNVkMq3y2
+function fr_async
+    if [ "$argv[2]" = "$async_secret" ]
+        echo now doing
+        switch "$argv[3]"
+            case "pomodoro";
+                # do pomodoro
+                for time in (seq 1 $fr_pomo_len)
+                    set remain (math "$fr_pomo_len - $time + 1")
+                    echo $remain minutes remains
+                    if [ $remain -gt 1 ]
+                        sleep 60
+                    else
+                        break
+                    end
+                end
+                for time in (seq 1 60)
+                    set remain (math "60 - $time")
+                    sleep 1
+                    echo $remain seconds remains
+                end
+                begin
+                    flock -e 200
+                    set array (cat $fr_root/inventory.txt)
+                    set arrLen (count $array)
+
+                    truncate -s 0 $fr_root/inventory.txt
+                    for idx in (seq 1 $arrLen)
+                        set line $array[$idx]
+                        if string match "* $fr_ch_pomo" "$line" > /dev/null
+                            set line (string replace " $fr_ch_pomo" '' $line) # remove the pomo char
+                            if string match "*$fr_ch_est*" $line[-1] > /dev/null
+                                echo (string replace $fr_ch_est $fr_ch_good $line) >> $fr_root/inventory.txt
+                            else
+                                echo $line$fr_ch_bad >> $fr_root/inventory.txt
+                            end
+                        else
+                            echo $line >> $fr_root/inventory.txt
+                        end
+                    end
+                end 200<$fr_root/inventory.txt
+                echo Pomo ended
+            case "short-break";
+                # do break
+                set brk_time $fr_brk_shrt
+                for time in (seq 1 $brk_time)
+                    set remain (math "$brk_time - $time + 1")
+                    echo $remain minutes remains
+                    if [ $remain -gt 1 ]
+                        sleep 60
+                    else
+                        break
+                    end
+                end
+                for time in (seq 1 60)
+                    set remain (math "60 - $time")
+                    sleep 1
+                    echo $remain seconds remains
+                end
+                begin
+                    flock -e 200
+                    truncate -s 0 $fr_root/.breaking
+                end 200<$fr_root/.breaking
+                echo 'Break ended.'
+            case "long-break";
+                # do break
+                set brk_time $fr_brk_long
+                for time in (seq 1 $brk_time)
+                    set remain (math "$brk_time - $time + 1")
+                    echo $remain minutes remains
+                    if [ $remain -gt 1 ]
+                        sleep 60
+                    else
+                        break
+                    end
+                end
+                for time in (seq 1 60)
+                    set remain (math "60 - $time")
+                    sleep 1
+                    echo $remain seconds remains
+                end
+                begin
+                    flock -e 200
+                    truncate -s 0 $fr_root/.breaking
+                end 200<$fr_root/.breaking
+                echo 'Break ended.'
+            case "*";
+                fr_usage
+        end
+    else
+        fr_usage
+    end
+end
+
 function fr_pomo
     if [ 2 -gt (count $argv) ]
         fr_usage
@@ -135,42 +234,8 @@ function fr_pomo
         end
     end 200<$fr_root/inventory.txt
 
-    # TODO move to asynchronous section
-    for time in (seq 1 $fr_pomo_len)
-        set remain (math "$fr_pomo_len - $time + 1")
-        if [ $remain -gt 1 ]
-            echo $remain minutes remains
-            sleep 60
-        else
-            break
-        end
-    end
-    for time in (seq 1 60)
-        set remain (math "60 - $time")
-        sleep 1
-        echo $remain seconds remains
-    end
-    begin
-        flock -e 200
-        set array (cat $fr_root/inventory.txt)
-        set arrLen (count $array)
-
-        truncate -s 0 $fr_root/inventory.txt
-        for idx in (seq 1 $arrLen)
-            set line $array[$idx]
-            if string match "* $fr_ch_pomo" "$line" > /dev/null
-                set line (string replace " $fr_ch_pomo" '' $line) # remove the pomo char
-                if string match "*$fr_ch_est*" $line[-1] > /dev/null
-                    echo (string replace $fr_ch_est $fr_ch_good $line) >> $fr_root/inventory.txt
-                else
-                    echo $line$fr_ch_bad >> $fr_root/inventory.txt
-                end
-            else
-                echo $line >> $fr_root/inventory.txt
-            end
-        end
-    end 200<$fr_root/inventory.txt
-    echo Pomo ended
+    set fr_proc (status -f)
+    fish -c "$fr_proc async \"$async_secret\" pomodoro" &
 end
 
 function fr_break
@@ -184,30 +249,14 @@ function fr_break
             flock -e 200
             echo $fr_ch_pomo > $fr_root/.breaking
         end 200<$fr_root/.breaking
-        set brk_time $fr_brk_short
         if [ $argv[1] = 'long' ]
-            set brk_time $fr_brk_long
+            set fr_proc (status -f)
+            fish -c "$fr_proc async \"$async_secret\" long-break" &
+        else
+            set fr_proc (status -f)
+            fish -c "$fr_proc async \"$async_secret\" short-break" &
         end
-        for time in (seq 1 $brk_time)
-            set remain (math "$brk_time - $time + 1")
-            if [ $remain -gt 1 ]
-                echo $remain minutes remains
-                sleep 60
-            else
-                break
-            end
-        end
-        for time in (seq 1 60)
-            set remain (math "60 - $time")
-            sleep 1
-            echo $remain seconds remains
-        end
-        begin
-            flock -e 200
-            truncate -s 0 $fr_root/.breaking
-        end 200<$fr_root/.breaking
     end
-    echo 'Break ended.'
 end
 
 function fr_finish
@@ -219,6 +268,7 @@ function fr_trash
 end
 
 switch "$argv[1]"
+    case 'async'; fr_async $argv
     case 'list'; fr_ai_list
     case 'add'; fr_ai_add $argv
     case 'tour'; fr_ai_tour
