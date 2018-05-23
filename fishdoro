@@ -310,7 +310,29 @@ function fr_break
 end
 
 function fr_finish
-    echo 'finish activity'
+    if [ 2 -gt (count $argv) ]
+        fr_usage
+        exit 1
+    end
+    set curr (math "$argv[2]")
+    begin
+        flock -e 200
+        if cat $fr_root/inventory.txt | grep $fr_ch_pomo >> /dev/null
+            echo "A pomodoro is running. Please update only in break time."
+            exit 1
+        end
+        set array (cat $fr_root/inventory.txt)
+        set arrLen (count $array)
+
+        truncate -s 0 $fr_root/inventory.txt
+        for idx in (seq 1 $arrLen)
+            if [ $curr -eq (math "$arrLen - $idx + 1") ]
+                echo "Activity $array[$idx] is done and removed."
+            else
+                echo $array[$idx] >> $fr_root/inventory.txt
+            end
+        end
+    end 200<$fr_root/inventory.txt
 end
 
 switch "$argv[1]"
@@ -320,7 +342,7 @@ switch "$argv[1]"
     case 'tour'; fr_ai_tour
     case 'pomo'; fr_pomo $argv
     case 'break'; fr_break "$argv[2]"
-    case 'finish'; fr_finish "$argv[2]"
+    case 'finish'; fr_finish $argv
     case 'help'
         fr_usage
     case '*';
